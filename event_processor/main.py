@@ -25,7 +25,7 @@ def main():
     while True:
         messages = consumer.next_batch()
         if messages:
-            batch = BatchMessageProcessor(messages=messages)
+            batch = BatchMessageProcessor(messages)
             valid, invalid = batch.validate_messages()
             for message in valid:
                 producer.submit(message)

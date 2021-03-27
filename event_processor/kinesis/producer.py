@@ -22,7 +22,6 @@ class StreamProducer(object):
                 print(f"{red('ERROR')}: kinesis `PutRecord` failed! Retrying...")
 
     def submit(self, message):
-        print(f"Sending message to stream: {blue(self.stream_name)}")
         self.put_to_stream("network_connection", base64.b64decode(message['Body']))
         pass
 

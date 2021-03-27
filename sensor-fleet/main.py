@@ -68,8 +68,8 @@ def generate_submission(device_id, invalid_probability=0.1):
         "device_id": device_id if random.uniform(0, 1) > invalid_probability else 'not-an-uuid',
         "time_created": datetime.now().isoformat(),
         "events": {
-            "new_process": [generate_new_process_event() for _ in range(random.randint(3, 5))],
-            "network_connection": [generate_network_event() for _ in range(random.randint(3, 5))]
+            "new_process": [generate_new_process_event() for _ in range(random.randint(0, 5))],
+            "network_connection": [generate_network_event() for _ in range(random.randint(0, 5))]
         }
     }
 

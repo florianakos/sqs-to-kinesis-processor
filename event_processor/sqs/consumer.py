@@ -46,8 +46,8 @@ class QueueConsumer:
         pass
 
     def delete_message(self, message):
-        if message['ReceiptHandle']:
-            print(f"Deleting processed or invalid message from queue: [{green(message['ReceiptHandle'][:35])}...]")
+        if 'ReceiptHandle' in message:
+            print(f"Deleting message from queue: [{green(message['ReceiptHandle'][:35])}...]")
             self.client.delete_message(QueueUrl=self.queue_url, ReceiptHandle=message['ReceiptHandle'])
         else:
             print(f"{red('ERROR')}: Can't delete message without a `ReceiptHandle`!")
