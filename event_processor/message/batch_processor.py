@@ -1,7 +1,7 @@
 import json
 import base64
 from sys import stderr
-from utils.functions import is_valid
+from utils.functions import msg_valid
 from utils.colors import red, green
 
 
@@ -13,7 +13,7 @@ class BatchMessageProcessor:
     def validate_messages(self) -> (list, list):
         valid, invalid = [], []
         for message in self.messages:
-            if is_valid(message):
+            if msg_valid(message):
                 valid.append(message)
             else:
                 invalid.append(message)
