@@ -1,5 +1,6 @@
 import boto3
 from utils.functions import print_err
+from utils.colors import red, green
 from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -21,23 +22,23 @@ class QueueConsumer:
             return self.client.receive_message(QueueUrl=self.queue_url, MaxNumberOfMessages=batch_size,
                                                WaitTimeSeconds=0, VisibilityTimeout=visibility_timeout)
         except NoCredentialsError:
-            print_err("ERROR: Credentials could not located! Terminating ...")
+            print_err(f"{red('ERROR')}: Credentials could not located!")
         except ClientError as e:
             print(e)
             if e.response['Error']['Code'] == 'AWS.SimpleQueueService.NonExistentQueue':
-                print_err("ERROR: SQS Queue does not exist! Terminating ...")
+                print_err(f"{red('ERROR')}: SQS Queue does not exist!")
             if e.response['Error']['Code'] == 'InvalidAddress':
-                print_err("ERROR: SQS Queue URL is not valid! Terminating ...")
+                print_err(f"{red('ERROR')}: SQS Queue URL is not valid!")
             if e.response['Error']['Code'] == 'InvalidClientTokenId':
-                print_err("ERROR: Invalid or expired AWS token! Terminating ...")
+                print_err(f"{red('ERROR')}: Invalid or expired AWS token!")
             else:
                 raise
 
     def next_batch(self):
-        batch = self.get_messages(batch_size=self.batch_size,
-                                  visibility_timeout=self.visibility_timeout)
-        if len(batch) > 0 and "Messages" in batch:
-            return batch['Messages']
+        response = self.get_messages(batch_size=self.batch_size,
+                                     visibility_timeout=self.visibility_timeout)
+        if len(response) > 0 and "Messages" in response:
+            return response['Messages']
         else:
             return None
 
@@ -46,7 +47,7 @@ class QueueConsumer:
 
     def delete_message(self, message):
         if message['ReceiptHandle']:
-            print(f"Deleting message from queue with handle [{message['ReceiptHandle'][:35]}...]")
+            print(f"Deleting processed or invalid message from queue: [{green(message['ReceiptHandle'][:35])}...]")
             self.client.delete_message(QueueUrl=self.queue_url, ReceiptHandle=message['ReceiptHandle'])
         else:
-            print("No `ReceiptHandle` found in message, can't delete it sorry...!")
+            print(f"{red('ERROR')}: Can't delete message without a `ReceiptHandle`!")

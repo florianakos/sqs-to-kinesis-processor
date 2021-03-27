@@ -27,11 +27,11 @@ def main():
         if messages:
             batch = BatchMessageProcessor(messages=messages)
             valid, invalid = batch.validate_messages()
-            for msg in valid:
-                producer.submit(msg)
-                consumer.delete_message(msg)
-            for msg in invalid:
-                consumer.delete_message(msg)
+            for message in valid:
+                producer.submit(message)
+                consumer.delete_message(message)
+            for message in invalid:
+                consumer.delete_message(message)
         time.sleep(3)
 
 

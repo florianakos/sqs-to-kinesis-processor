@@ -1,7 +1,10 @@
 import json
+import base64
 import boto3
 from botocore.config import Config
-from utils.functions import decode
+from botocore.exceptions import ClientError
+from utils.colors import red, blue
+
 
 class StreamProducer(object):
 
@@ -11,17 +14,16 @@ class StreamProducer(object):
         self.stream_name = stream_name
 
     def put_to_stream(self, event_type, payload):
-        try:
-            print(self.client.put_record(StreamName=self.stream_name,
-                                         Data=json.dumps(payload).encode(),
-                                         PartitionKey=event_type))
-        except Exception as e:
-            print(e)
+        while True:
+            try:
+                self.client.put_record(StreamName=self.stream_name, Data=payload, PartitionKey=event_type)
+                break
+            except ClientError:
+                print(f"{red('ERROR')}: kinesis `PutRecord` failed! Retrying...")
 
     def submit(self, message):
-        print(f"Sending message to stream: {self.stream_name}")
-        body = decode(message)
-        self.put_to_stream("network_connection", body)
+        print(f"Sending message to stream: {blue(self.stream_name)}")
+        self.put_to_stream("network_connection", base64.b64decode(message['Body']))
         pass
 
 
