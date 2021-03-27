@@ -2,36 +2,34 @@
 
 import os
 from utils.localstack import wait_for_localstack
-from sqs.consumer import QueueConsumer
-from kinesis.producer import StreamProducer
-from message.batch_processor import BatchMessageProcessor
+from sqs.consumer import EventSource
+from kinesis.sink import EventSink
+from message.filter import get_valid_submissions
 import time
 
 ENDPOINT_URL = os.environ.get("ENDPOINT_URL", "http://localstack:4566")
-QUEUE_NAME = 'submissions'
-STREAM_NAME = 'events'
+QUEUE_NAME = os.environ.get("QUEUE_NAME", "submissions")
+STREAM_NAME = os.environ.get("STREAM_NAME", "events")
+BATCH_SIZE = os.environ.get("BATCH_SIZE", 10)
+VISIBILITY_TIMEOUT = os.environ.get("VISIBILITY_TIMEOUT", 30)
+
 
 def main():
-    wait_for_localstack(queue_name=QUEUE_NAME,
-                        stream_name=STREAM_NAME)
+    # block until queue and stream is ready in localstack...
+    wait_for_localstack(queue_name=QUEUE_NAME, stream_name=STREAM_NAME)
 
-    consumer = QueueConsumer(endpoint_url=ENDPOINT_URL,
-                             queue_name=QUEUE_NAME,
-                             batch_size=5,
-                             visibility_timeout=10)
-    producer = StreamProducer(endpoint_url=ENDPOINT_URL,
-                              stream_name=STREAM_NAME)
+    source_queue = EventSource(endpoint_url=ENDPOINT_URL, queue_name=QUEUE_NAME,
+                               batch_size=BATCH_SIZE, visibility_timeout=VISIBILITY_TIMEOUT)
 
+    target_sink = EventSink(endpoint_url=ENDPOINT_URL, stream_name=STREAM_NAME)
+
+    # process messages until cancelled
     while True:
-        messages = consumer.next_batch()
+        messages = source_queue.next_batch()
         if messages:
-            batch = BatchMessageProcessor(messages)
-            valid, invalid = batch.validate_messages()
-            for message in valid:
-                producer.submit(message)
-                consumer.delete_message(message)
-            for message in invalid:
-                consumer.delete_message(message)
+            for msg in get_valid_submissions(messages):
+                target_sink.submit(msg)
+            source_queue.delete_batch(messages)
         time.sleep(3)
 
 

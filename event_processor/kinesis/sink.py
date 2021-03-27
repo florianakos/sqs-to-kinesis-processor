@@ -3,10 +3,10 @@ import base64
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from utils.colors import red, blue
+from utils.helpers import red
 
 
-class StreamProducer(object):
+class EventSink(object):
 
     def __init__(self, endpoint_url, stream_name):
         self.config = Config(region_name='eu-west-1', retries={'max_attempts': 3, 'mode': 'standard'})
@@ -22,6 +22,7 @@ class StreamProducer(object):
                 print(f"{red('ERROR')}: kinesis `PutRecord` failed! Retrying...")
 
     def submit(self, message):
+        # print(json.loads(base64.b64decode(message['Body']).decode()))
         self.put_to_stream("network_connection", base64.b64decode(message['Body']))
         pass
 
