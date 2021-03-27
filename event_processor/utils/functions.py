@@ -17,7 +17,8 @@ def is_uuid(string) -> bool:
     return bool(regex.match(string))
 
 def keys_match(keys) -> bool:
-    return set(keys) == {'new_process', 'network_connection'}
+    key_set = ['new_process', 'network_connection']
+    return all([key in key_set for key in set(keys)])
 
 def is_ip(string):
     try:
