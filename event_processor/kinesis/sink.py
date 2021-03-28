@@ -26,6 +26,9 @@ class EventSink(object):
                 log.debug("`PutRecord` to Kinesis stream failed, retrying...")
 
     def submit(self, message):
+        """
+        implements submission of separate event types to their respective shards
+        """
         for event_type in ['new_process', 'network_connection']:
             for event in extract_from(get_body(message), event_type):
                 self.put_to_stream(event_type, json.dumps(event))

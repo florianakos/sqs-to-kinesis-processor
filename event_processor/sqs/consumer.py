@@ -14,6 +14,9 @@ class EventSource:
         self.visibility_timeout = visibility_timeout
 
     def get_messages(self, batch_size, visibility_timeout):
+        """
+        retrieves a batch of messages from the queue, while also catching common errors
+        """
         try:
             log.debug("Calling sqs.receive_message to fetch next batch of messages")
             return self.client.receive_message(QueueUrl=self.queue_url, MaxNumberOfMessages=batch_size,
@@ -29,6 +32,9 @@ class EventSource:
                 raise
 
     def next_batch(self):
+        """
+        calls the fetch for the next batch and returns the messages if any are returned
+        """
         log.debug("Fetching next batch from SQS queue")
         response = self.get_messages(batch_size=self.batch_size, visibility_timeout=self.visibility_timeout)
         if len(response) > 0 and "Messages" in response:
@@ -39,6 +45,9 @@ class EventSource:
             return None
 
     def batch_delete(self, messages):
+        """
+        allows batch-deletion of messages, with option to retry those that failed
+        """
         log.debug("Deleting batch of messages from SQS queue")
         result = self.client.delete_message_batch(
             QueueUrl=self.queue_url,
