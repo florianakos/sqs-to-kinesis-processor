@@ -1,6 +1,6 @@
 import json
 import base64
-import socket
+from ipaddress import ip_address
 import re
 import uuid
 from datetime import datetime
@@ -30,7 +30,7 @@ def ip_valid(string):
     returns true if the passed string is a valid IPv4 address
     """
     try:
-        socket.inet_aton(string)
+        ip_address(string)
         return True
     except:
         return False
