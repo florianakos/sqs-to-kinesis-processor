@@ -1,29 +1,31 @@
-import json
-import base64
 import boto3
-from botocore.config import Config
+import json
 from botocore.exceptions import ClientError
-from utils.helpers import red
+from event.processing import get_body, extract_from
+from config.env import AWS_CONF
+from utils.logger import init_logger
 
+log = init_logger(__name__)
 
 class EventSink(object):
 
     def __init__(self, endpoint_url, stream_name):
-        self.config = Config(region_name='eu-west-1', retries={'max_attempts': 3, 'mode': 'standard'})
-        self.client = boto3.client('kinesis', config=self.config, endpoint_url=endpoint_url, verify=False)
+        self.client = boto3.client('kinesis', config=AWS_CONF, endpoint_url=endpoint_url, verify=False)
         self.stream_name = stream_name
 
     def put_to_stream(self, event_type, payload):
+        """
+        function used to submit a record to Kinesis stream, with retry in case of failure
+        """
         while True:
             try:
+                log.debug(f"Putting `{event_type}` with ID {json.loads(payload)['event_id']} to stream")
                 self.client.put_record(StreamName=self.stream_name, Data=payload, PartitionKey=event_type)
                 break
             except ClientError:
-                print(f"{red('ERROR')}: kinesis `PutRecord` failed! Retrying...")
+                log.debug("`PutRecord` to Kinesis stream failed, retrying...")
 
     def submit(self, message):
-        # print(json.loads(base64.b64decode(message['Body']).decode()))
-        self.put_to_stream("network_connection", base64.b64decode(message['Body']))
-        pass
-
-
+        for event_type in ['new_process', 'network_connection']:
+            for event in extract_from(get_body(message), event_type):
+                self.put_to_stream(event_type, json.dumps(event))

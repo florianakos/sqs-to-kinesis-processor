@@ -2,9 +2,10 @@ import json
 import base64
 import socket
 import re
+import uuid
+from datetime import datetime
 
-
-def decode(message) -> dict:
+def get_body(message) -> dict:
     """
     returns a dict of the submission which came in the SQS message body
     """
@@ -51,21 +52,32 @@ def events_non_empty(events) -> bool:
         len(events['new_process']) > 0
     ])
 
-def valid(submission) -> bool:
+def valid(message) -> bool:
     """
     returns true if all validation requirements are met
     """
-    sub = decode(submission)
+    submission = get_body(message)
     return all([
-        uuid_valid(sub['submission_id']),
-        uuid_valid(sub['device_id']),
-        event_keys_valid(sub['events'].keys()),
-        events_non_empty(sub['events']),
-        network_connections_valid(sub['events']['network_connection'])
+        uuid_valid(submission['submission_id']),
+        uuid_valid(submission['device_id']),
+        event_keys_valid(submission['events'].keys()),
+        events_non_empty(submission['events']),
+        network_connections_valid(submission['events']['network_connection'])
     ])
 
-def get_valid_submissions(submissions) -> list:
+def get_valid_messages(messages) -> list:
     """
     returns a list of submissions that have passed all validation rules
     """
-    return [sub for sub in submissions if valid(sub)]
+    return [msg for msg in messages if valid(msg)]
+
+def extract_from(submission, event_type):
+    """
+    returns a list of new events filtered for given event_type
+    """
+    return [{'event_id': str(uuid.uuid4()),
+             'device_id': submission['device_id'],
+             'processed_at': datetime.now().isoformat(),
+             'event_type': event_type,
+             'data': event
+             } for event in submission['events'][event_type]]

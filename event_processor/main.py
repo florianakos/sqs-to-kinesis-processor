@@ -1,36 +1,35 @@
 #!/usr/bin/env python3
-
-import os
+import time
 from utils.localstack import wait_for_localstack
 from sqs.consumer import EventSource
 from kinesis.sink import EventSink
-from message.filter import get_valid_submissions
-import time
+from event.processing import get_valid_messages
+from utils.logger import init_logger
+from config.env import QUEUE_NAME, STREAM_NAME,\
+    ENDPOINT_URL, BATCH_SIZE, VISIBILITY_TIMEOUT
 
-ENDPOINT_URL = os.environ.get("ENDPOINT_URL", "http://localstack:4566")
-QUEUE_NAME = os.environ.get("QUEUE_NAME", "submissions")
-STREAM_NAME = os.environ.get("STREAM_NAME", "events")
-BATCH_SIZE = os.environ.get("BATCH_SIZE", 10)
-VISIBILITY_TIMEOUT = os.environ.get("VISIBILITY_TIMEOUT", 30)
-
+log = init_logger(__name__)
 
 def main():
     # block until queue and stream is ready in localstack...
     wait_for_localstack(queue_name=QUEUE_NAME, stream_name=STREAM_NAME)
 
-    source_queue = EventSource(endpoint_url=ENDPOINT_URL, queue_name=QUEUE_NAME,
+    # handler for reading from SQS
+    event_source = EventSource(endpoint_url=ENDPOINT_URL, queue_name=QUEUE_NAME,
                                batch_size=BATCH_SIZE, visibility_timeout=VISIBILITY_TIMEOUT)
 
-    target_sink = EventSink(endpoint_url=ENDPOINT_URL, stream_name=STREAM_NAME)
+    # handler for sending to Kinesis
+    event_sink = EventSink(endpoint_url=ENDPOINT_URL, stream_name=STREAM_NAME)
 
     # process messages until cancelled
     while True:
-        messages = source_queue.next_batch()
-        if messages:
-            for msg in get_valid_submissions(messages):
-                target_sink.submit(msg)
-            source_queue.delete_batch(messages)
-        time.sleep(3)
+        batch = event_source.next_batch()
+        if batch is None:
+            time.sleep(3)
+            continue
+        for msg in get_valid_messages(batch):
+            event_sink.submit(msg)
+        event_source.batch_delete(batch)
 
 
 if __name__ == '__main__':
