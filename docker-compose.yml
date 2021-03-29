@@ -15,7 +15,7 @@ services:
       AWS_ACCESS_KEY_ID: some_key_id
       AWS_SECRET_ACCESS_KEY: some_secret
       PYTHONUNBUFFERED: 1
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: INFO
     depends_on:
       - localstack
   localstack:

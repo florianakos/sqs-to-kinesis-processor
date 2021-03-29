@@ -3,9 +3,9 @@ import time
 from utils.localstack import wait_for_localstack
 from sqs.consumer import EventSource
 from kinesis.sink import EventSink
-from event.processing import get_valid_messages
+from event.processing import get_submissions_from
 from utils.logger import init_logger
-from config.env import QUEUE_NAME, STREAM_NAME,\
+from utils.config import QUEUE_NAME, STREAM_NAME,\
     ENDPOINT_URL, BATCH_SIZE, VISIBILITY_TIMEOUT
 
 log = init_logger(__name__)
@@ -27,8 +27,8 @@ def main():
         if batch is None:
             time.sleep(3)
             continue
-        for msg in get_valid_messages(batch):
-            event_sink.submit(msg)
+        for submission in get_submissions_from(batch):
+            event_sink.send(submission)
         event_source.batch_delete(batch)
 
 

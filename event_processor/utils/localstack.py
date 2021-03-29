@@ -1,6 +1,6 @@
 import time
 import boto3
-from config.env import ENDPOINT_URL, AWS_CONF
+from utils.config import ENDPOINT_URL, AWS_CONF
 from utils.logger import init_logger
 
 log = init_logger(__name__)

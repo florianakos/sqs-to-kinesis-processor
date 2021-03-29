@@ -18,13 +18,6 @@ def uuid_valid(string) -> bool:
     regex = re.compile('^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', re.I)
     return bool(regex.match(string))
 
-def event_keys_valid(keys) -> bool:
-    """
-    returns true if the passed list of keys only contains entries from `keys_list`
-    """
-    keys_list = ['new_process', 'network_connection']
-    return all([key in keys_list for key in set(keys)])
-
 def ip_valid(string):
     """
     returns true if the passed string is a valid IPv4 address
@@ -35,49 +28,63 @@ def ip_valid(string):
     except:
         return False
 
-def network_connections_valid(connections) -> bool:
+def event_valid(event, event_type) -> bool:
     """
-    verifies that both source and destination IPs are valid in all network_connections entries
+    returns true if the given event of event_type passes validations
     """
-    return all([
-        ip_valid(nc['source_ip']) and ip_valid(nc['destination_ip']) for nc in connections
-    ])
+    if event_type == 'new_process':
+        return all([
+            'cmdl' in event, event['cmdl'] is not None,
+            'user' in event, len(event['user']) > 0
+        ])
+    if event_type == 'network_connection':
+        return all([
+            'source_ip' in event, len(event['source_ip']) > 0, ip_valid(event['source_ip']),
+            'destination_ip' in event, len(event['destination_ip']) > 0, ip_valid(event['destination_ip']),
+            'destination_port' in event, event['destination_port'] > 0, event['destination_port'] < 65536
+        ])
+
+def event_keys_valid(keys) -> bool:
+    """
+    returns true if the passed list of keys only contains entries from `keys_list`
+    """
+    keys_list = ['new_process', 'network_connection']
+    return all([key in keys_list for key in set(keys)])
 
 def events_non_empty(events) -> bool:
     """
-    returns true if either lists are non-empty
+    returns true if either types of events in the dictionary are non-empty
     """
     return any([
         len(events['network_connection']) > 0,
         len(events['new_process']) > 0
     ])
 
-def valid(message) -> bool:
+def submission_valid(sub) -> bool:
     """
-    returns true if all validation requirements are met
+    returns true if all validation requirements are met on the given submission
     """
-    submission = get_body(message)
     return all([
-        uuid_valid(submission['submission_id']),
-        uuid_valid(submission['device_id']),
-        event_keys_valid(submission['events'].keys()),
-        events_non_empty(submission['events']),
-        network_connections_valid(submission['events']['network_connection'])
+        uuid_valid(sub['submission_id']),
+        uuid_valid(sub['device_id']),
+        event_keys_valid(sub['events'].keys()),
+        events_non_empty(sub['events'])
     ])
 
-def get_valid_messages(messages) -> list:
+def get_submissions_from(messages) -> list:
     """
-    returns a list of submissions that have passed all validation rules
+    returns a list of submissions that have passed first round of validation
     """
-    return [msg for msg in messages if valid(msg)]
+    return [get_body(msg) for msg in messages if submission_valid(get_body(msg))]
 
-def extract_from(submission, event_type):
+def get_events_from(submission, event_type):
     """
-    returns a list of new events filtered for given event_type
+    returns a list of valid events from submission, filtered for given event_type
     """
-    return [{'event_id': str(uuid.uuid4()),
-             'device_id': submission['device_id'],
-             'processed_at': datetime.now().isoformat(),
-             'event_type': event_type,
-             'data': event
-             } for event in submission['events'][event_type]]
+    return [{
+        'event_id': str(uuid.uuid4()),
+        'device_id': submission['device_id'],
+        'processed_at': datetime.now().isoformat(),
+        'event_type': event_type,
+        'event_data': event
+    } for event in submission['events'][event_type] if event_valid(event, event_type)]

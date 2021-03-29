@@ -1,5 +1,5 @@
 import boto3
-from config.env import AWS_CONF
+from utils.config import AWS_CONF
 from utils.logger import init_logger
 from botocore.exceptions import ClientError, NoCredentialsError
 

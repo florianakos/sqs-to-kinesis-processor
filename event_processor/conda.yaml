@@ -1,0 +1,8 @@
+name: testing
+dependencies:
+  - python=3.9
+  - pip=21.0.1
+  - pip:
+    - boto3==1.17.38
+    - pytest==6.2.2
+
