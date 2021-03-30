@@ -140,15 +140,15 @@ Documentation of the data format of a **new_process** type record sent to Kinesi
 
 ### Optional Design Questions
 
-1. How does your application scale and guarantee near-realtime processing when the incoming traffic increases? Where are the possible bottlenecks and how to tackle those?
+1. **How does your application scale and guarantee near-realtime processing when the incoming traffic increases? Where are the possible bottlenecks and how to tackle those?**
 
 So the SQS service has a limitation on max 10 messages returned in one batch. This means that if more than 10 messages arrive during the processing of 10 messages, the queue length will grow and the **event_processor** will not catch up.
 
-There are certain ways to improve this. For example, processing time can be reduced by processing each message of a batch in parallel, which should speed up the processing rate. Another option is deploying mulriple replicas of this processor, which will all consume the same queue and increase the overall processing capacity.
+There are certain ways to improve this. For example, processing time can be reduced by processing each message of a batch in parallel, which should speed up the processing rate. Another option is deploying multiple replicas of this processor, that all consume the queue and thus increase the overall processing rate.
 
-When it comes to the Kinesis stream that receives the records, there is also a possibility that the shard will reach the limit of 1000 PUT/s. Currently the code uses the **even_type** to decide which record goes to which of the 2 shards that are set up in localstack, if throughput increases there may be a need to create more shards to handle it.
+When it comes to the Kinesis stream that receives the records, there is also a possibility that the shard will reach the limit of 1000 PUT/sec. Currently the code uses the **even_type** to decide which record goes to which of the 2 shards that are set up in localstack, if throughput increases there may be a need to create more shards to handle the increased load.
 
-2.  What kind of metrics you would collect from the application to get visibility to its throughput, performance and health?
+2.  **What kind of metrics you would collect from the application to get visibility to its throughput, performance and health?**
 
 I would definitely set up some monitoring and alerting for both the SQS queue and the Kinesis stream:
 
@@ -159,7 +159,7 @@ I would maybe also implement some way of keeping track of invalid submissions. O
 
 Another possibility would be to use a so-called **dead-letter-queue** where SQS messages would be sent if the event submission in them is invalid. This can be achieved by setting the `maxReceiveCount` which defines how many times the processor can try to process a message before it should be redirected to this other SQS queue. Once the invalid submission is sent to the DLQ there can be some alerts that trigger an alert so someone can investigate. In case the amount of these invalid submissions is too high, it may be impractical to investigate them all, so alerting should be tuned appropriately.~~~~~~~~
  
-3.  How would you deploy your application in a real world scenario? What kind of testing, deployment stages or quality gates you would build to ensure a safe production deployment?
+3. **How would you deploy your application in a real world scenario? What kind of testing, deployment stages or quality gates you would build to ensure a safe production deployment?**
 
 Probably this would partially depend on how critical this application is. Normally, I would create a CI/CD setup which would get triggered from VCS if some part of the code base changes, and run the unittests to verify that the tests covering the functions used for processing still pass.
 
