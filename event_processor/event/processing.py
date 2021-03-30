@@ -5,11 +5,16 @@ import re
 import uuid
 from datetime import datetime
 
+
 def get_body(message) -> dict:
     """
     returns a dict of the submission which came in the SQS message body
     """
-    return json.loads(base64.b64decode(message['Body']).decode())
+    try:
+        return json.loads(base64.b64decode(message['Body']).decode())
+    except:
+        return None
+
 
 def uuid_valid(string) -> bool:
     """
@@ -17,6 +22,7 @@ def uuid_valid(string) -> bool:
     """
     regex = re.compile('^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', re.I)
     return bool(regex.match(string))
+
 
 def ip_valid(string):
     """
@@ -27,6 +33,7 @@ def ip_valid(string):
         return True
     except:
         return False
+
 
 def event_valid(event, event_type) -> bool:
     """
@@ -44,12 +51,14 @@ def event_valid(event, event_type) -> bool:
             'destination_port' in event, event['destination_port'] > 0, event['destination_port'] < 65536
         ])
 
+
 def event_keys_valid(keys) -> bool:
     """
     returns true if the passed list of keys only contains entries from `keys_list`
     """
     keys_list = ['new_process', 'network_connection']
     return all([key in keys_list for key in set(keys)])
+
 
 def events_non_empty(events) -> bool:
     """
@@ -59,6 +68,7 @@ def events_non_empty(events) -> bool:
         len(events['network_connection']) > 0,
         len(events['new_process']) > 0
     ])
+
 
 def submission_valid(sub) -> bool:
     """
@@ -71,11 +81,13 @@ def submission_valid(sub) -> bool:
         events_non_empty(sub['events'])
     ])
 
+
 def get_submissions_from(messages) -> list:
     """
     returns a list of submissions that have passed first round of validation
     """
     return [get_body(msg) for msg in messages if submission_valid(get_body(msg))]
+
 
 def get_events_from(submission, event_type):
     """

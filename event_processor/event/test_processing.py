@@ -24,12 +24,16 @@ invalid_sub = {
 
 class TestEventProcessing(unittest.TestCase):
 
-    def test_get_body(self):
+    def test_get_body_valid(self):
         original_body = {"some": "value"}
         encoded = {
             'Body': base64.b64encode(json.dumps(original_body).encode())
         }
         assert get_body(encoded) == original_body
+
+    def test_get_body_fails(self):
+        invalid = { 'Invlid': {"some": "value"} }
+        assert get_body(invalid) == None
 
     def test_uuid_valid(self):
         assert uuid_valid("9aa59197-8316-4369-8d1d-4af4be98e277")
@@ -142,6 +146,6 @@ class TestEventProcessing(unittest.TestCase):
         assert events[0]['device_id'] == valid_sub['device_id']
         assert events[0]['event_data'] == valid_sub['events']['network_connection'][0]
 
-    def test_get_events_from_new_process_invalid(self):
+    def test_get_events_from_net_conn_invalid(self):
         events = get_events_from(invalid_sub, "network_connection")
         assert len(events) == 0
