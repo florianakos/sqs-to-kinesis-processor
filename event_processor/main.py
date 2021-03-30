@@ -25,7 +25,7 @@ def main():
     while True:
         batch = event_source.next_batch()
         if batch is None:
-            time.sleep(3)
+            time.sleep(1)
             continue
         for submission in get_submissions_from(batch):
             event_sink.send(submission)
