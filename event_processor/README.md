@@ -2,17 +2,32 @@
 
 This is a short description of the **event_processor** component which I wrote to fulfill the [requirements](../README.md) of this assignment. 
 
-### Introduction
+### Requirements
 
-The main requirements were:
+The main requirements are:
  
- (a) to run continuously until terminated
- (b) read and process event submissions from an SQS queue
- (c) output valid event records to a Kinesis stream.
+ * to run continuously until terminated
+ * read and process event submissions from an SQS queue
+ * output valid event records to a Kinesis stream.
 
 To implement these requirements I decided to use `Python3` and the latest version of the AWS SDK for Python called `boto3`. 
 
 The required AWS infrastructure and the data-source (**sensor-fleet**) were both set up in separate docker containers, that are managed via **docker-compose**. This part was provided as-is, and it was my task to integrate the new **event_processor** component with this setup.
+
+There are also a few secondary requirements:
+
+* each event is published as an individual record to kinesis - ✅ : implemented in `get_events_from`
+* each event must have information of the event type (`new_process` or `network_connection`) - ✅: implemented in `get_events_from`
+* each event must have an unique identifier - ✅: implemented in `get_events_from`
+* each event must have an identifier of the source device (`device_id`) - ✅: implemented in `get_events_from`
+* each event must have a timestamp when it was processed (backend side time in UTC) - ✅: implemented in `get_events_from`
+* submissions are validated and invalid or broken submissions are dropped - ✅: implemented in `get_submissions_from`
+* must guarantee no data loss (for valid data), i.e. submissions must not be deleted before all events are successfully published - ✅: implemented in `put_to_stream`
+* must guarantee ordering of events in the context of a single submission - ✅: ensured by sequential processing of events from submission in `send`
+* the number of messages read from SQS with a single request must be configurable - ✅: configurable via ENV variable `BATCH_SIZE`
+* the visibility timeout of read SQS messages must be configurable - ✅: configurable via ENV variable `VISIBILITY_TIMEOUT`
+
+### Operation
 
 The main program runs in an infinite loop and continuously tries to read a batch of messages from the queue. These messages get validated and processed, and the result gets submitted to a Kinesis data stream. 
 
@@ -30,7 +45,7 @@ There are no specific instructions for running the **event_processor** separatel
 docker-compose up --build --abort-on-container-exit
 ```
 
-By default the **event_processor** component does not send any output to console, but one can change the `LOG_LEVEL` env variable in the docker-compose.yaml file to **DEBUG** level which wil result in plenty of debug output for troubleshooting:
+By default the **event_processor** component has `LOG_LEVEL` set to **DEBUG**, which will result in plenty of output for seeing how the component operates:
 
 ```
 2021-03-30 07:50:56,691 - utils.localstack - DEBUG - Localstack not ready yet...
@@ -38,22 +53,19 @@ By default the **event_processor** component does not send any output to console
 2021-03-30 07:51:15,187 - utils.localstack - DEBUG - Queue is alive, at long last!
 2021-03-30 07:51:15,201 - utils.localstack - DEBUG - Stream is alive, at long last!
 2021-03-30 07:51:15,222 - sqs.consumer - DEBUG - Fetching next batch from SQS queue
-2021-03-30 07:51:15,222 - sqs.consumer - DEBUG - Calling sqs.receive_message to fetch next batch of messages
 2021-03-30 07:51:15,249 - sqs.consumer - DEBUG - No new messages found in SQS queue
 2021-03-30 07:51:16,252 - sqs.consumer - DEBUG - Fetching next batch from SQS queue
-2021-03-30 07:51:16,253 - sqs.consumer - DEBUG - Calling sqs.receive_message to fetch next batch of messages
-2021-03-30 07:51:16,289 - sqs.consumer - DEBUG - Fetched a batch of 10 messages from SQS
-2021-03-30 07:51:16,290 - kinesis.sink - DEBUG - PutRecord with event_id 20cc3fc4-ad3d-49c3-a449-e5606fac001e of event_type [new_process] to Kinesis
+2021-03-30 07:51:16,289 - sqs.consumer - DEBUG - Got a batch of 10 messages from SQS
+2021-03-30 07:51:16,290 - kinesis.sink - DEBUG - PutRecord with event_id 20cc3fc4-ad3d-49c3-a449-e5606fac001e of type [new_process] to Kinesis
 2021-03-30 07:51:16,298 - kinesis.sink - DEBUG - `PutRecord` to Kinesis stream failed, retrying...
-2021-03-30 07:51:16,298 - kinesis.sink - DEBUG - PutRecord with event_id 20cc3fc4-ad3d-49c3-a449-e5606fac001e of event_type [new_process] to Kinesis
-2021-03-30 07:51:16,356 - kinesis.sink - DEBUG - PutRecord with event_id a2e8f372-6428-4a1a-a5ee-8d675f41448f of event_type [network_connection] to Kinesis
-2021-03-30 07:51:16,381 - kinesis.sink - DEBUG - PutRecord with event_id d087293d-5850-43b1-b077-bdfac9945175 of event_type [network_connection] to Kinesis
-2021-03-30 07:51:17,113 - kinesis.sink - DEBUG - PutRecord with event_id 23170485-bcc7-4db0-8a71-f6670bdfed69 of event_type [new_process] to Kinesis
+2021-03-30 07:51:16,298 - kinesis.sink - DEBUG - PutRecord with event_id 20cc3fc4-ad3d-49c3-a449-e5606fac001e of type [new_process] to Kinesis
+2021-03-30 07:51:16,356 - kinesis.sink - DEBUG - PutRecord with event_id a2e8f372-6428-4a1a-a5ee-8d675f41448f of type [network_connection] to Kinesis
+2021-03-30 07:51:16,381 - kinesis.sink - DEBUG - PutRecord with event_id d087293d-5850-43b1-b077-bdfac9945175 of type [network_connection] to Kinesis
+2021-03-30 07:51:17,113 - kinesis.sink - DEBUG - PutRecord with event_id 23170485-bcc7-4db0-8a71-f6670bdfed69 of type [new_process] to Kinesis
+[...]
 2021-03-30 07:51:17,124 - sqs.consumer - DEBUG - Deleting batch of messages from SQS queue
 2021-03-30 07:51:17,145 - sqs.consumer - DEBUG - Fetching next batch from SQS queue
-2021-03-30 07:51:17,146 - sqs.consumer - DEBUG - Calling sqs.receive_message to fetch next batch of messages
 2021-03-30 07:51:17,177 - sqs.consumer - DEBUG - No new messages found in SQS queue
-...
 ```
 
 ### Unit testing
@@ -62,9 +74,8 @@ Here are some instructions for running the unit tests from repository root:
 
 ```
 $ cd event_processor
-
 $ conda env create -f conda.yaml
-$ conda activate testing
+$ conda activate $(grep name conda.yaml | awk '{print $2}')
 $ pytest -s -v
 ================================================= test session starts ==================================================
 platform darwin -- Python 3.9.2, pytest-6.2.2, py-1.10.0, pluggy-0.13.1 -- /Users/flszabo/opt/anaconda3/envs/testing/bin/python
@@ -129,7 +140,7 @@ Documentation of the data format of a **new_process** type record sent to Kinesi
 
 ### Optional Design Questions
 
-#### How does your application scale and guarantee near-realtime processing when the incoming traffic increases? Where are the possible bottlenecks and how to tackle those?
+1. How does your application scale and guarantee near-realtime processing when the incoming traffic increases? Where are the possible bottlenecks and how to tackle those?
 
 So the SQS service has a limitation on max 10 messages returned in one batch. This means that if more than 10 messages arrive during the processing of 10 messages, the queue length will grow and the **event_processor** will not catch up.
 
@@ -137,7 +148,7 @@ There are certain ways to improve this. For example, processing time can be redu
 
 When it comes to the Kinesis stream that receives the records, there is also a possibility that the shard will reach the limit of 1000 PUT/s. Currently the code uses the **even_type** to decide which record goes to which of the 2 shards that are set up in localstack, if throughput increases there may be a need to create more shards to handle it.
 
-#### What kind of metrics you would collect from the application to get visibility to its throughput, performance and health?
+2.  What kind of metrics you would collect from the application to get visibility to its throughput, performance and health?
 
 I would definitely set up some monitoring and alerting for both the SQS queue and the Kinesis stream:
 
@@ -148,7 +159,7 @@ I would maybe also implement some way of keeping track of invalid submissions. O
 
 Another possibility would be to use a so-called **dead-letter-queue** where SQS messages would be sent if the event submission in them is invalid. This can be achieved by setting the `maxReceiveCount` which defines how many times the processor can try to process a message before it should be redirected to this other SQS queue. Once the invalid submission is sent to the DLQ there can be some alerts that trigger an alert so someone can investigate. In case the amount of these invalid submissions is too high, it may be impractical to investigate them all, so alerting should be tuned appropriately.~~~~~~~~
  
-#### How would you deploy your application in a real world scenario? What kind of testing, deployment stages or quality gates you would build to ensure a safe production deployment?
+3.  How would you deploy your application in a real world scenario? What kind of testing, deployment stages or quality gates you would build to ensure a safe production deployment?
 
 Probably this would partially depend on how critical this application is. Normally, I would create a CI/CD setup which would get triggered from VCS if some part of the code base changes, and run the unittests to verify that the tests covering the functions used for processing still pass.
 

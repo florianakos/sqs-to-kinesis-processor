@@ -18,7 +18,6 @@ class EventSource:
         retrieves a batch of messages from the queue, while also catching common errors
         """
         try:
-            log.debug("Calling sqs.receive_message to fetch next batch of messages")
             return self.client.receive_message(QueueUrl=self.queue_url, MaxNumberOfMessages=batch_size,
                                                WaitTimeSeconds=0, VisibilityTimeout=visibility_timeout)
         except NoCredentialsError:
@@ -38,7 +37,7 @@ class EventSource:
         log.debug("Fetching next batch from SQS queue")
         response = self.get_messages(batch_size=self.batch_size, visibility_timeout=self.visibility_timeout)
         if len(response) > 0 and "Messages" in response:
-            log.debug(f"Fetched a batch of {len(response['Messages'])} messages from SQS")
+            log.debug(f"Got a batch of {len(response['Messages'])} messages from the queue")
             return response['Messages']
         else:
             log.debug("No new messages found in SQS queue")

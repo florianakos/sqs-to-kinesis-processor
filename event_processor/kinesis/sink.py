@@ -19,7 +19,7 @@ class EventSink(object):
         """
         while True:
             try:
-                log.debug(f"PutRecord with event_id {payload['event_id']} of event_type [{event_type}] to Kinesis")
+                log.debug(f"PutRecord with event_id {payload['event_id']} of type [{event_type}] to Kinesis")
                 self.client.put_record(StreamName=self.stream_name, Data=json.dumps(payload), PartitionKey=event_type)
                 break
             except ClientError:
